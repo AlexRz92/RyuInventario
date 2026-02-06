@@ -45,13 +45,13 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className={`fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden transition-opacity ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
+    <div className="min-h-screen bg-slate-950">
+      <div className={`fixed inset-0 bg-black bg-opacity-70 z-20 lg:hidden transition-opacity ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
 
-      <aside className={`fixed top-0 left-0 z-30 w-64 h-full bg-white border-r border-gray-200 transition-transform transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700">
+      <aside className={`fixed top-0 left-0 z-30 w-64 h-full bg-slate-900 border-r border-slate-800 transition-transform transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="flex items-center justify-between p-6 border-b border-slate-800">
+          <h2 className="text-xl font-bold text-white">Admin Panel</h2>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-gold transition-colors">
             <X size={24} />
           </button>
         </div>
@@ -61,10 +61,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <a
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 currentPath === item.href
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-slate-800 text-gold border-l-4 border-gold shadow-lg shadow-gold/10'
+                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-white border-l-4 border-transparent'
               }`}
             >
               {item.icon}
@@ -75,15 +75,15 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       </aside>
 
       <div className="lg:ml-64">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <header className="bg-slate-900 border-b border-gold/20 sticky top-0 z-10 shadow-lg">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-700">
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-400 hover:text-gold transition-colors">
                 <Menu size={24} />
               </button>
-              <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+              <h1 className="text-2xl font-bold text-white">{title}</h1>
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors">
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gold border border-gold/30 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-gold/20">
               <LogOut size={18} />
               <span className="font-medium">Cerrar Sesión</span>
             </button>

@@ -5,9 +5,9 @@ export function Orders() {
   return (
     <AdminGuard>
       <AdminLayout title="Órdenes">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Gestión de Órdenes</h2>
-          <p className="text-gray-600">Administra todas las órdenes de la tienda.</p>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl p-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Gestión de Órdenes</h2>
+          <p className="text-slate-300">Administra todas las órdenes de la tienda.</p>
         </div>
       </AdminLayout>
     </AdminGuard>

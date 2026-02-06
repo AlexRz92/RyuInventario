@@ -5,9 +5,9 @@ export function Products() {
   return (
     <AdminGuard>
       <AdminLayout title="Productos">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Gestión de Productos</h2>
-          <p className="text-gray-600">Administra el catálogo de productos de la tienda.</p>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl p-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Gestión de Productos</h2>
+          <p className="text-slate-300">Administra el catálogo de productos de la tienda.</p>
         </div>
       </AdminLayout>
     </AdminGuard>
