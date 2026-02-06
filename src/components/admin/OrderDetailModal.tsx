@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Package, CreditCard, MapPin, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Package, CreditCard, MapPin, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { Order, OrderItem } from '../../hooks/useOrders';
 import { useOrders } from '../../hooks/useOrders';
 
@@ -15,6 +15,7 @@ export function OrderDetailModal({ order, items, onClose }: OrderDetailModalProp
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loadingImage, setLoadingImage] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -23,20 +24,42 @@ export function OrderDetailModal({ order, items, onClose }: OrderDetailModalProp
     };
   }, []);
 
+  const isPDF = (path: string): boolean => {
+    return path.toLowerCase().endsWith('.pdf');
+  };
+
   const handleViewProof = async () => {
     if (!order.payment_proof_url) return;
 
+    if (signedUrl) {
+      if (isPDF(order.payment_proof_url)) {
+        window.open(signedUrl, '_blank');
+      } else {
+        setShowImagePreview(true);
+      }
+      return;
+    }
+
     setLoadingImage(true);
     setImageError(false);
-    setShowImagePreview(true);
+    setErrorMessage('');
 
     const url = await getPaymentProofSignedUrl(order.payment_proof_url);
     if (url) {
       setSignedUrl(url);
+      if (isPDF(order.payment_proof_url)) {
+        window.open(url, '_blank');
+        setLoadingImage(false);
+      } else {
+        setShowImagePreview(true);
+        setLoadingImage(false);
+      }
     } else {
       setImageError(true);
+      setErrorMessage('No se pudo generar la URL del comprobante. Revisa la consola para más detalles.');
+      setShowImagePreview(true);
+      setLoadingImage(false);
     }
-    setLoadingImage(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -155,6 +178,11 @@ export function OrderDetailModal({ order, items, onClose }: OrderDetailModalProp
                             <div className="w-4 h-4 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
                             Cargando...
                           </>
+                        ) : isPDF(order.payment_proof_url) ? (
+                          <>
+                            <ExternalLink size={16} />
+                            Abrir PDF
+                          </>
                         ) : (
                           <>
                             <ImageIcon size={16} />
@@ -205,13 +233,18 @@ export function OrderDetailModal({ order, items, onClose }: OrderDetailModalProp
       </div>
 
       {showImagePreview && order.payment_proof_url && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex items-center justify-center p-4" onClick={() => setShowImagePreview(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex items-center justify-center p-4" onClick={() => {
+          setShowImagePreview(false);
+          setImageError(false);
+          setErrorMessage('');
+        }}>
           <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => {
                 setShowImagePreview(false);
                 setSignedUrl(null);
                 setImageError(false);
+                setErrorMessage('');
               }}
               className="absolute -top-12 right-0 text-white hover:text-gold transition-colors"
             >
@@ -227,7 +260,10 @@ export function OrderDetailModal({ order, items, onClose }: OrderDetailModalProp
                   <div>
                     <h3 className="text-white font-semibold mb-2">Error al cargar el comprobante</h3>
                     <p className="text-slate-400 text-sm">
-                      No fue posible acceder al archivo. Intenta de nuevo o contacta al administrador.
+                      {errorMessage || 'No fue posible acceder al archivo. Intenta de nuevo o contacta al administrador.'}
+                    </p>
+                    <p className="text-slate-500 text-xs mt-2">
+                      Revisa la consola del navegador (F12) para más información de debug.
                     </p>
                   </div>
                 </div>

@@ -29,7 +29,6 @@ const navItems: NavItem[] = [
   { label: 'Órdenes', href: '/admin/orders', icon: <ShoppingCart size={20} /> },
   { label: 'Productos', href: '/admin/products', icon: <Package size={20} /> },
   { label: 'Categorías', href: '/admin/categories', icon: <FolderTree size={20} /> },
-  { label: 'Inventario', href: '/admin/inventory', icon: <Boxes size={20} /> },
   { label: 'Envíos', href: '/admin/shipping', icon: <Truck size={20} /> },
   { label: 'Cuentas Bancarias', href: '/admin/bank-accounts', icon: <CreditCard size={20} /> },
 ];

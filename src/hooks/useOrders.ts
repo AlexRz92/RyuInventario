@@ -83,18 +83,50 @@ export function useOrders() {
     }
   };
 
-  const getPaymentProofSignedUrl = async (filePath: string): Promise<string | null> => {
+  const normalizeFilePath = (rawPath: string): string | null => {
+    if (!rawPath) return null;
+
+    console.log('[DEBUG] payment_proof_url original:', rawPath);
+
+    if (!rawPath.startsWith('http')) {
+      console.log('[DEBUG] filePath normalizado (ya es path):', rawPath);
+      return rawPath;
+    }
+
+    const match = rawPath.match(/\/transfer-proofs\/(.+)$/);
+    if (match && match[1]) {
+      const normalized = match[1];
+      console.log('[DEBUG] filePath normalizado (extraído de URL):', normalized);
+      return normalized;
+    }
+
+    console.error('[DEBUG] No se pudo extraer filePath de URL:', rawPath);
+    return null;
+  };
+
+  const getPaymentProofSignedUrl = async (rawPath: string): Promise<string | null> => {
     try {
-      if (!filePath) return null;
+      if (!rawPath) return null;
+
+      const filePath = normalizeFilePath(rawPath);
+      if (!filePath) {
+        console.error('[DEBUG] filePath inválido después de normalización');
+        return null;
+      }
 
       const { data, error } = await supabase.storage
         .from('transfer-proofs')
-        .createSignedUrl(filePath, 3600);
+        .createSignedUrl(filePath, 120);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[DEBUG] Error en createSignedUrl:', error.message);
+        throw error;
+      }
+
+      console.log('[DEBUG] URL firmada generada correctamente');
       return data?.signedUrl || null;
     } catch (err) {
-      console.error('Error generating signed URL:', err);
+      console.error('[DEBUG] Error generating signed URL:', err);
       return null;
     }
   };
