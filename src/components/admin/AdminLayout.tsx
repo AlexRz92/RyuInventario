@@ -9,8 +9,9 @@ import {
   CreditCard,
   Menu,
   X,
-  ArrowLeft
+  LogOut
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -24,7 +25,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/admin', icon: <LayoutDashboard size={20} /> },
+  { label: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
   { label: 'Órdenes', href: '/admin/orders', icon: <ShoppingCart size={20} /> },
   { label: 'Productos', href: '/admin/products', icon: <Package size={20} /> },
   { label: 'Categorías', href: '/admin/categories', icon: <FolderTree size={20} /> },
@@ -36,6 +37,12 @@ const navItems: NavItem[] = [
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const currentPath = window.location.pathname;
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    sessionStorage.clear();
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,10 +83,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               </button>
               <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
             </div>
-            <a href="/" className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
-              <ArrowLeft size={18} />
-              <span className="font-medium">Volver a la tienda</span>
-            </a>
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors">
+              <LogOut size={18} />
+              <span className="font-medium">Cerrar Sesión</span>
+            </button>
           </div>
         </header>
 

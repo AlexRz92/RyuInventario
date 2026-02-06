@@ -32,9 +32,10 @@ function App() {
 
   const renderRoute = () => {
     switch (currentPath) {
-      case '/login':
+      case '/':
         return <Login />;
       case '/admin':
+      case '/admin/dashboard':
         return <Dashboard />;
       case '/admin/orders':
         return <Orders />;
@@ -49,16 +50,7 @@ function App() {
       case '/admin/bank-accounts':
         return <BankAccounts />;
       default:
-        return (
-          <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-lg text-gray-700">Start prompting (or editing) to see magic happen :)</p>
-              <a href="/login" className="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Ir a Login
-              </a>
-            </div>
-          </div>
-        );
+        return <Login />;
     }
   };
 

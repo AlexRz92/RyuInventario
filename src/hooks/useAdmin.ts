@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface AdminStatus {
@@ -7,7 +7,33 @@ interface AdminStatus {
   error: string | null;
 }
 
-let cachedAdminStatus: { userId: string; isAdmin: boolean } | null = null;
+const ADMIN_CACHE_KEY = 'admin_status_cache';
+
+function getCachedAdminStatus(userId: string): boolean | null {
+  try {
+    const cached = sessionStorage.getItem(ADMIN_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.userId === userId && parsed.timestamp > Date.now() - 5 * 60 * 1000) {
+        return parsed.isAdmin;
+      }
+    }
+  } catch {
+    // Ignore cache errors
+  }
+  return null;
+}
+
+function setCachedAdminStatus(userId: string, isAdmin: boolean): void {
+  try {
+    sessionStorage.setItem(
+      ADMIN_CACHE_KEY,
+      JSON.stringify({ userId, isAdmin, timestamp: Date.now() })
+    );
+  } catch {
+    // Ignore cache errors
+  }
+}
 
 export function useAdmin(): AdminStatus {
   const [status, setStatus] = useState<AdminStatus>({
@@ -16,7 +42,12 @@ export function useAdmin(): AdminStatus {
     error: null,
   });
 
+  const hasChecked = useRef(false);
+
   useEffect(() => {
+    if (hasChecked.current) return;
+    hasChecked.current = true;
+
     async function checkAdmin() {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -33,8 +64,9 @@ export function useAdmin(): AdminStatus {
 
         const userId = session.user.id;
 
-        if (cachedAdminStatus?.userId === userId) {
-          setStatus({ isAdmin: cachedAdminStatus.isAdmin, loading: false, error: null });
+        const cachedStatus = getCachedAdminStatus(userId);
+        if (cachedStatus !== null) {
+          setStatus({ isAdmin: cachedStatus, loading: false, error: null });
           return;
         }
 
@@ -51,8 +83,7 @@ export function useAdmin(): AdminStatus {
         }
 
         const isAdmin = !!data;
-        cachedAdminStatus = { userId, isAdmin };
-
+        setCachedAdminStatus(userId, isAdmin);
         setStatus({ isAdmin, loading: false, error: null });
       } catch (err) {
         setStatus({

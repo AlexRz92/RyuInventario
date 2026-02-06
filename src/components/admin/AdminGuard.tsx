@@ -1,5 +1,6 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
+import { supabase } from '../../lib/supabase';
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -7,13 +8,20 @@ interface AdminGuardProps {
 
 export function AdminGuard({ children }: AdminGuardProps) {
   const { isAdmin, loading, error } = useAdmin();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
+    if (hasRedirected.current) return;
+
     if (!loading) {
-      if (error) {
-        window.location.href = '/login';
-      } else if (!isAdmin) {
-        window.location.href = '/';
+      if (error || !isAdmin) {
+        hasRedirected.current = true;
+
+        (async () => {
+          await supabase.auth.signOut();
+          sessionStorage.clear();
+          window.location.href = '/';
+        })();
       }
     }
   }, [isAdmin, loading, error]);

@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -10,16 +9,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { login, loading } = useAuth();
-
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        window.location.href = '/admin';
-      }
-    };
-    checkSession();
-  }, []);
+  const hasRedirected = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +28,14 @@ export function Login() {
 
     const result = await login(email, password);
 
-    if (result.success) {
+    if (result.success && result.isAdmin) {
       setSuccess(true);
-      setTimeout(() => {
-        const redirectPath = result.isAdmin ? '/admin' : '/perfil';
-        window.location.href = redirectPath;
-      }, 1000);
+      if (!hasRedirected.current) {
+        hasRedirected.current = true;
+        setTimeout(() => {
+          window.location.href = '/admin/dashboard';
+        }, 800);
+      }
     } else {
       setError(result.error?.message || 'Error al iniciar sesión');
     }
@@ -147,19 +139,10 @@ export function Login() {
               )}
             </button>
           </form>
-
-          <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 text-center">
-            <p className="text-gray-600 text-sm">
-              ¿No tienes cuenta?{' '}
-              <a href="/registro" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
-                Regístrate aquí
-              </a>
-            </p>
-          </div>
         </div>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          © 2025 Tu Tienda. Todos los derechos reservados.
+          © 2025 Panel de Administración. Todos los derechos reservados.
         </p>
       </div>
     </div>
