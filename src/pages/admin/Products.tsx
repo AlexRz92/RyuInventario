@@ -114,7 +114,7 @@ export function Products() {
 
   const generateSKU = (): string => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let sku = 'RYU-';
+    let sku = 'SKU-';
     for (let i = 0; i < 6; i++) {
       sku += chars.charAt(Math.floor(Math.random() * chars.length));
     }
