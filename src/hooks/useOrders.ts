@@ -30,14 +30,24 @@ export function useOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOrders = async () => {
+  const loadOrders = async (statusFilter?: string, limit?: number) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setOrders(data || []);
@@ -132,7 +142,7 @@ export function useOrders() {
   };
 
   useEffect(() => {
-    loadOrders();
+    loadOrders('all', 10);
   }, []);
 
   return {

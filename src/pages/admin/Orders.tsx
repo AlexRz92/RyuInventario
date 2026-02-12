@@ -1,30 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminGuard } from '../../components/admin/AdminGuard';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { OrderDetailModal } from '../../components/admin/OrderDetailModal';
 import { Toast } from '../../components/admin/Toast';
 import { useOrders, Order, OrderItem } from '../../hooks/useOrders';
-import { Search, Filter, Eye, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+
+type TabType = 'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled';
+
+interface Tab {
+  id: TabType;
+  label: string;
+  count: number;
+}
 
 export function Orders() {
-  const { orders, loading, updateOrderStatus, loadOrderItems } = useOrders();
+  const { orders, loading, updateOrderStatus, loadOrderItems, loadOrders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [orderCounts, setOrderCounts] = useState({
+    all: 0,
+    pending: 0,
+    confirmed: 0,
+    completed: 0,
+    cancelled: 0
+  });
+
+  useEffect(() => {
+    loadOrderCounts();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      loadOrders('all');
+    } else {
+      loadOrdersForTab(activeTab);
+    }
+  }, [activeTab, searchTerm]);
+
+  const loadOrderCounts = async () => {
+    const { data } = await supabase.from('orders').select('status');
+    if (data) {
+      const counts = {
+        all: data.length,
+        pending: data.filter(o => o.status === 'pending').length,
+        confirmed: data.filter(o => o.status === 'confirmed').length,
+        completed: data.filter(o => o.status === 'completed').length,
+        cancelled: data.filter(o => o.status === 'cancelled').length,
+      };
+      setOrderCounts(counts);
+    }
+  };
+
+  const loadOrdersForTab = (tab: TabType) => {
+    loadOrders(tab === 'all' ? undefined : tab, 10);
+  };
+
+  const tabs: Tab[] = [
+    { id: 'all', label: 'Todos', count: orderCounts.all },
+    { id: 'pending', label: 'Pendientes', count: orderCounts.pending },
+    { id: 'confirmed', label: 'Confirmadas', count: orderCounts.confirmed },
+    { id: 'completed', label: 'Completadas', count: orderCounts.completed },
+    { id: 'cancelled', label: 'Rechazadas', count: orderCounts.cancelled },
+  ];
 
   const filteredOrders = orders.filter(order => {
+    if (!searchTerm.trim()) return true;
+
     const matchesSearch =
       order.tracking_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesTab = activeTab === 'all' || order.status === activeTab;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesTab;
   });
 
   const handleViewDetails = async (order: Order) => {
@@ -44,6 +100,8 @@ export function Orders() {
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status: newStatus });
       }
+      await loadOrderCounts();
+      loadOrdersForTab(activeTab);
     } else {
       setToast({ message: 'Error al actualizar el estado', type: 'error' });
     }
@@ -78,6 +136,21 @@ export function Orders() {
       card: 'Tarjeta'
     };
     return labels[method] || method;
+  };
+
+  const getTabIcon = (tab: TabType) => {
+    switch (tab) {
+      case 'pending':
+        return <Clock size={16} className="text-yellow-400" />;
+      case 'confirmed':
+        return <CheckCircle size={16} className="text-blue-400" />;
+      case 'completed':
+        return <CheckCircle size={16} className="text-green-400" />;
+      case 'cancelled':
+        return <XCircle size={16} className="text-red-400" />;
+      default:
+        return null;
+    }
   };
 
   const renderTableActions = (order: Order) => {
@@ -151,118 +224,113 @@ export function Orders() {
     <AdminGuard>
       <AdminLayout title="Órdenes">
         <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl p-6">
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Buscar por código, email o nombre..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-                />
-              </div>
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-10 pr-8 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent appearance-none cursor-pointer min-w-[200px]"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="confirmed">Confirmado</option>
-                  <option value="completed">Completado</option>
-                  <option value="cancelled">Cancelado</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-4 flex items-center gap-4 text-sm">
-              <span className="text-slate-400">
-                Total: <span className="text-white font-semibold">{filteredOrders.length}</span> órdenes
-              </span>
-              <span className="text-slate-700">|</span>
-              <div className="flex gap-3">
-                <span className="flex items-center gap-1">
-                  <Clock size={14} className="text-yellow-400" />
-                  <span className="text-slate-400">Pendientes: </span>
-                  <span className="text-yellow-400 font-semibold">
-                    {orders.filter(o => o.status === 'pending').length}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <CheckCircle size={14} className="text-blue-400" />
-                  <span className="text-slate-400">Confirmadas: </span>
-                  <span className="text-blue-400 font-semibold">
-                    {orders.filter(o => o.status === 'confirmed').length}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <CheckCircle size={14} className="text-green-400" />
-                  <span className="text-slate-400">Completadas: </span>
-                  <span className="text-green-400 font-semibold">
-                    {orders.filter(o => o.status === 'completed').length}
-                  </span>
-                </span>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
+            <div className="border-b border-slate-700">
+              <div className="flex overflow-x-auto">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-6 py-4 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-gold text-gold bg-gold/5'
+                        : 'border-transparent text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    {getTabIcon(tab.id)}
+                    <span>{tab.label}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      activeTab === tab.id
+                        ? 'bg-gold/20 text-gold'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Código</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Cliente</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Email</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Total</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Pago</th>
-                    <th className="text-center py-3 px-4 font-semibold text-slate-300">Estado</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Fecha</th>
-                    <th className="text-center py-3 px-4 font-semibold text-slate-300">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-12 text-slate-400">
-                        No se encontraron órdenes
-                      </td>
+            <div className="p-6">
+              <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Buscar por código, email o nombre..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {!searchTerm.trim() && filteredOrders.length > 0 && (
+                <div className="mb-4 flex items-center gap-2 text-sm">
+                  <div className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg">
+                    <span className="text-slate-400">
+                      Mostrando las <span className="text-gold font-semibold">10</span> más recientes
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Código</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Cliente</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Email</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Total</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Pago</th>
+                      <th className="text-center py-3 px-4 font-semibold text-slate-300">Estado</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-300">Fecha</th>
+                      <th className="text-center py-3 px-4 font-semibold text-slate-300">Acciones</th>
                     </tr>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <tr key={order.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 px-4">
-                          <span className="font-mono text-gold font-semibold">{order.tracking_code}</span>
-                        </td>
-                        <td className="py-4 px-4 text-white">{order.customer_name}</td>
-                        <td className="py-4 px-4 text-slate-300">{order.customer_email}</td>
-                        <td className="py-4 px-4 text-gold font-bold">${Number(order.total_amount).toFixed(2)}</td>
-                        <td className="py-4 px-4 text-slate-300">{getPaymentMethodLabel(order.payment_method)}</td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                            {getStatusLabel(order.status)}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-slate-300 text-sm">
-                          {new Date(order.created_at).toLocaleDateString('es', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </td>
-                        <td className="py-4 px-4">
-                          {renderTableActions(order)}
+                  </thead>
+                  <tbody>
+                    {filteredOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-12 text-slate-400">
+                          {searchTerm.trim()
+                            ? 'No se encontraron órdenes con ese criterio de búsqueda'
+                            : 'No hay órdenes en esta categoría'}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredOrders.map((order) => (
+                        <tr key={order.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                          <td className="py-4 px-4">
+                            <span className="font-mono text-gold font-semibold">{order.tracking_code}</span>
+                          </td>
+                          <td className="py-4 px-4 text-white">{order.customer_name}</td>
+                          <td className="py-4 px-4 text-slate-300">{order.customer_email}</td>
+                          <td className="py-4 px-4 text-gold font-bold">${Number(order.total_amount).toFixed(2)}</td>
+                          <td className="py-4 px-4 text-slate-300">{getPaymentMethodLabel(order.payment_method)}</td>
+                          <td className="py-4 px-4 text-center">
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                              {getStatusLabel(order.status)}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-slate-300 text-sm">
+                            {new Date(order.created_at).toLocaleDateString('es', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </td>
+                          <td className="py-4 px-4">
+                            {renderTableActions(order)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-
         </div>
 
         {selectedOrder && !loadingDetail && (
