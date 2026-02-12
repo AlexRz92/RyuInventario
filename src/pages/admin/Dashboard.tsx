@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminGuard } from '../../components/admin/AdminGuard';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
-import { DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingCart, Package, TrendingUp, Star } from 'lucide-react';
 
 interface SalesStats {
   totalRevenue: number;
