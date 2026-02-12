@@ -16,7 +16,7 @@ interface Tab {
 }
 
 export function Orders() {
-  const { orders, loading, updateOrderStatus, loadOrderItems, loadOrders } = useOrders();
+  const { orders, loading, updateOrderStatus, loadOrderItems, loadOrders, searchOrders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -24,6 +24,7 @@ export function Orders() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [orderCounts, setOrderCounts] = useState({
     all: 0,
     pending: 0,
@@ -37,12 +38,26 @@ export function Orders() {
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim()) {
-      loadOrders('all');
-    } else {
+    if (!searchTerm.trim()) {
+      setIsSearching(false);
       loadOrdersForTab(activeTab);
     }
-  }, [activeTab, searchTerm]);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setIsSearching(false);
+      loadOrdersForTab(activeTab);
+      return;
+    }
+
+    setIsSearching(true);
+    const debounceTimer = setTimeout(() => {
+      searchOrders(searchTerm, activeTab === 'all' ? undefined : activeTab);
+    }, 350);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, activeTab]);
 
   const loadOrderCounts = async () => {
     const { data } = await supabase.from('orders').select('status');
@@ -70,18 +85,6 @@ export function Orders() {
     { id: 'cancelled', label: 'Rechazadas', count: orderCounts.cancelled },
   ];
 
-  const filteredOrders = orders.filter(order => {
-    if (!searchTerm.trim()) return true;
-
-    const matchesSearch =
-      order.tracking_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesTab = activeTab === 'all' || order.status === activeTab;
-
-    return matchesSearch && matchesTab;
-  });
 
   const handleViewDetails = async (order: Order) => {
     setLoadingDetail(true);
@@ -265,13 +268,21 @@ export function Orders() {
                 </div>
               </div>
 
-              {!searchTerm.trim() && filteredOrders.length > 0 && (
+              {orders.length > 0 && (
                 <div className="mb-4 flex items-center gap-2 text-sm">
-                  <div className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg">
-                    <span className="text-slate-400">
-                      Mostrando las <span className="text-gold font-semibold">10</span> más recientes
-                    </span>
-                  </div>
+                  {isSearching ? (
+                    <div className="px-3 py-1.5 bg-slate-800 border border-gold/30 rounded-lg">
+                      <span className="text-gold font-semibold">
+                        Resultados de búsqueda: {orders.length}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg">
+                      <span className="text-slate-400">
+                        Mostrando las <span className="text-gold font-semibold">10</span> más recientes
+                      </span>
+                    </div>
+                  )} 
                 </div>
               )}
 
@@ -290,16 +301,16 @@ export function Orders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.length === 0 ? (
+                    {orders.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="text-center py-12 text-slate-400">
-                          {searchTerm.trim()
+                          {isSearching
                             ? 'No se encontraron órdenes con ese criterio de búsqueda'
                             : 'No hay órdenes en esta categoría'}
                         </td>
                       </tr>
                     ) : (
-                      filteredOrders.map((order) => (
+                      orders.map((order) => (
                         <tr key={order.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
                           <td className="py-4 px-4">
                             <span className="font-mono text-gold font-semibold">{order.tracking_code}</span>

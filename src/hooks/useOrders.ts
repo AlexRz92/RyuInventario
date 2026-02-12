@@ -58,6 +58,36 @@ export function useOrders() {
     }
   };
 
+  const searchOrders = async (searchTerm: string, statusFilter?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      if (searchTerm.trim()) {
+        query = query.or(
+          `tracking_code.ilike.%${searchTerm}%,customer_email.ilike.%${searchTerm}%,customer_name.ilike.%${searchTerm}%`
+        );
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al buscar órdenes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -150,6 +180,7 @@ export function useOrders() {
     loading,
     error,
     loadOrders,
+    searchOrders,
     updateOrderStatus,
     loadOrderItems,
     getPaymentProofSignedUrl
