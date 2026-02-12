@@ -112,6 +112,40 @@ export function Products() {
     setSelectedProduct(null);
   };
 
+  const generateSKU = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let sku = 'RYU-';
+    for (let i = 0; i < 6; i++) {
+      sku += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return sku;
+  };
+
+  const getUniqueSKU = async (): Promise<string | null> => {
+    const maxAttempts = 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const sku = generateSKU();
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('sku')
+        .eq('sku', sku)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking SKU uniqueness:', error);
+        return null;
+      }
+
+      if (!data) {
+        return sku;
+      }
+    }
+
+    return null;
+  };
+
   const handleSaveProduct = async () => {
     if (!formData.name.trim()) {
       showToast('El nombre es requerido', 'error');
@@ -142,7 +176,15 @@ export function Products() {
 
       let result;
       if (modalMode === 'create') {
-        result = await supabase.from('products').insert([productData]).select();
+        const sku = await getUniqueSKU();
+
+        if (!sku) {
+          showToast('Error generando SKU único. Intenta de nuevo.', 'error');
+          setSaving(false);
+          return;
+        }
+
+        result = await supabase.from('products').insert([{ ...productData, sku }]).select();
       } else if (selectedProduct) {
         result = await supabase
           .from('products')
@@ -398,6 +440,21 @@ export function Products() {
                     placeholder="Nombre del producto"
                   />
                 </div>
+
+                {modalMode === 'edit' && selectedProduct && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      SKU
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedProduct.sku}
+                      disabled
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 font-mono cursor-not-allowed"
+                      placeholder="SKU generado automáticamente"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
