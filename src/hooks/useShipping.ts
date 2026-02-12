@@ -30,23 +30,36 @@ export function useShipping() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 10;
+  const pageSize = 25;
 
-  const loadRules = async (page: number = 1, searchTerm?: string) => {
+  const loadRules = async (
+    page: number = 1,
+    searchTerm?: string,
+    filterType: 'states' | 'cities' = 'states'
+  ) => {
     setLoading(true);
     setError(null);
     try {
       let query = supabase
         .from('shipping_rules')
         .select('*', { count: 'exact' })
-        .order('country')
-        .order('state')
-        .order('city', { nullsFirst: true });
+        .eq('country', 'Venezuela');
+
+      if (filterType === 'states') {
+        query = query.eq('city', '');
+      } else {
+        query = query.neq('city', '');
+      }
 
       if (searchTerm && searchTerm.trim()) {
         query = query.or(
-          `country.ilike.%${searchTerm}%,state.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`
+          `state.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`
         );
+      }
+
+      query = query.order('state');
+      if (filterType === 'cities') {
+        query = query.order('city');
       }
 
       const from = (page - 1) * pageSize;
@@ -147,6 +160,37 @@ export function useShipping() {
     }
   };
 
+  const updateStateRule = async (
+    id: string,
+    isFree: boolean,
+    baseCost: number
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cost = isFree ? 0 : baseCost;
+
+      const { error } = await supabase
+        .from('shipping_rules')
+        .update({
+          is_free: isFree,
+          base_cost: cost,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setRules(rules.map(rule =>
+        rule.id === id ? { ...rule, is_free: isFree, base_cost: cost } : rule
+      ));
+
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Error al actualizar regla',
+      };
+    }
+  };
+
   const updateRule = async (
     id: string,
     formData: ShippingFormData
@@ -226,10 +270,6 @@ export function useShipping() {
     }
   };
 
-  useEffect(() => {
-    loadRules(1);
-  }, []);
-
   return {
     rules,
     loading,
@@ -239,6 +279,7 @@ export function useShipping() {
     pageSize,
     loadRules,
     createRule,
+    updateStateRule,
     updateRule,
     deleteRule,
     toggleActive,
