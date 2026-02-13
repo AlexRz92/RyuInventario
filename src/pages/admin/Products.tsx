@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminGuard } from '../../components/admin/AdminGuard';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Trash2, Star, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Star, Search, AlertTriangle, Package } from 'lucide-react';
 import { Toast } from '../../components/admin/Toast';
 
 interface Product {
@@ -27,9 +27,11 @@ type ModalMode = 'create' | 'edit' | null;
 export function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [inventoryMap, setInventoryMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
@@ -53,13 +55,22 @@ export function Products() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [productsRes, categoriesRes, inventoryRes] = await Promise.all([
         supabase.from('products').select('*').order('name'),
         supabase.from('categories').select('id, name').order('name'),
+        supabase.from('inventory').select('product_id, quantity'),
       ]);
 
       if (productsRes.data) setProducts(productsRes.data);
       if (categoriesRes.data) setCategories(categoriesRes.data);
+
+      if (inventoryRes.data) {
+        const map: Record<string, number> = {};
+        inventoryRes.data.forEach((item) => {
+          map[item.product_id] = item.quantity;
+        });
+        setInventoryMap(map);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       showToast('Error cargando datos', 'error');
@@ -78,7 +89,9 @@ export function Products() {
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !selectedCategory || product.category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const stock = inventoryMap[product.id] ?? 0;
+    const matchesStockFilter = !showLowStockOnly || stock <= 5;
+    return matchesSearch && matchesCategory && matchesStockFilter;
   });
 
   const openCreateModal = () => {
@@ -299,6 +312,18 @@ export function Products() {
                   </option>
                 ))}
               </select>
+
+              <button
+                onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  showLowStockOnly
+                    ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                }`}
+              >
+                <AlertTriangle size={18} />
+                Solo Stock Bajo
+              </button>
             </div>
 
             <button
@@ -325,6 +350,7 @@ export function Products() {
                       <th className="text-left py-3 px-4 font-semibold text-slate-300">SKU</th>
                       <th className="text-left py-3 px-4 font-semibold text-slate-300">Categoría</th>
                       <th className="text-right py-3 px-4 font-semibold text-slate-300">Precio</th>
+                      <th className="text-center py-3 px-4 font-semibold text-slate-300">Stock</th>
                       <th className="text-center py-3 px-4 font-semibold text-slate-300">Estado</th>
                       <th className="text-center py-3 px-4 font-semibold text-slate-300">Destacado</th>
                       <th className="text-center py-3 px-4 font-semibold text-slate-300">Acciones</th>
@@ -333,6 +359,7 @@ export function Products() {
                   <tbody>
                     {filteredProducts.map((product) => {
                       const category = categories.find((c) => c.id === product.category_id);
+                      const stock = inventoryMap[product.id] ?? 0;
                       return (
                         <tr key={product.id} className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
                           <td className="py-4 px-4">
@@ -358,6 +385,23 @@ export function Products() {
                             <p className="text-gold font-semibold">
                               ${Number(product.price).toFixed(2)}
                             </p>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            {stock === 0 ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-900/50 text-red-300 border border-red-700">
+                                <Package size={14} />
+                                Sin stock
+                              </span>
+                            ) : stock <= 5 ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-900/50 text-yellow-300 border border-yellow-700">
+                                <AlertTriangle size={14} />
+                                Stock bajo ({stock})
+                              </span>
+                            ) : (
+                              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-900/50 text-green-300 border border-green-700">
+                                {stock} unidades
+                              </span>
+                            )}
                           </td>
                           <td className="py-4 px-4 text-center">
                             <span
